@@ -29,5 +29,37 @@ $(document).ready(function() {
             }
         });
     });
+    // Código para guardar una nueva persona desde el modal
+    $('#form_guardar_persona').on('submit', function(e) {
+        e.preventDefault();
+        
+        $.ajax({
+            url: 'ajax/buscar_personas.php?action=insertar', // Puedes procesarlo en el mismo archivo o crear otro
+            type: 'POST',
+            data: $(this).serialize(),
+            beforeSend: function() {
+                $('#btn_guardar').attr("disabled", true).html("Guardando...");
+            },
+            success: function(response) {
+                // Aquí asumirías que procesas el insert con éxito
+                $('#mensaje_modal_persona').html('<div class="alert alert-success">Persona registrada con éxito.</div>');
+                $('#form_guardar_persona')[0].reset(); // Limpiar campos
+                $('#btn_guardar').attr("disabled", false).html("Guardar Persona");
+                
+                // Recargar la tabla si la función load() existe en la vista actual
+                if (typeof load === "function") { load(1); }
+                
+                // Cerrar modal automáticamente en 1.5 segundos
+                setTimeout(function(){
+                    $('#modalRegistroPersona').modal('hide');
+                    $('#mensaje_modal_persona').html('');
+                }, 1500);
+            },
+            error: function() {
+                alert("Error crítico en el servidor al intentar guardar.");
+                $('#btn_guardar').attr("disabled", false).html("Guardar Persona");
+            }
+        });
+    });
 
 });
