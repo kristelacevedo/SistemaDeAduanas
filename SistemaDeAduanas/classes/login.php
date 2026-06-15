@@ -2,7 +2,7 @@
 // classes/login.php
 require_once(__DIR__ . "/../config/conexion.php");
 
-class Login {
+class login {
     
     public function verificarUsuario($usuario, $password) {
         global $conexion;
