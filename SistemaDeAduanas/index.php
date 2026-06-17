@@ -1,6 +1,7 @@
 <?php
 // index.php
 require_once("config/conexion.php");
+require_once("config/conexion.php");
 require_once("classes/Dashboard.php");
 
 $dashboard = new Dashboard();
