@@ -1,75 +1,72 @@
 <?php
 // ajax/buscar_personas.php
-require_once("../config/conexion.php");
+declare(strict_types=1);
+header('Content-Type: application/json; charset=utf-8');
 
-$action = (isset($_REQUEST['action']) && $_REQUEST['action'] == 'ajax') ? $_REQUEST['action'] : '';
+require_once __DIR__ . '/../classes/Persona.php';
 
-if ($action == 'ajax') {
-    // Escapar cadena de búsqueda para evitar problemas
-    $q = mysqli_real_escape_string($conexion, (strip_tags($_REQUEST['q'], ENT_QUOTES)));
-    
-    // Construir consulta SQL dinámica
-    $aColumns = array("documento", "nombre", "apellido"); // Columnas de búsqueda
-    $sTable = "personas";
-    $sWhere = "";
-    
-    if ($_GET['q'] != "") {
-        $sWhere = "WHERE (";
-        for ($i = 0; $i < count($aColumns); $i++) {
-            $sWhere .= $aColumns[$i] . " LIKE '%" . $q . "%' OR ";
+try {
+    $personaModel = new Persona();
+    $action = $_GET['action'] ?? 'buscar';
+
+    // 1. Buscar y listar (Leer)
+    if ($action === 'buscar') {
+        $q = $_GET['q'] ?? '';
+        echo json_encode(['status' => 'success', 'data' => $personaModel->buscar($q)]);
+        exit;
+    }
+
+    // 2. Obtener datos para el modal de edición
+    if ($action === 'obtener') {
+        $id = (int)($_GET['id'] ?? 0);
+        $datos = $personaModel->obtenerPorId($id);
+        if ($datos) {
+            echo json_encode(['status' => 'success', 'data' => $datos]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Persona no encontrada.']);
         }
-        $sWhere = substr_replace($sWhere, "", -3);
-        $sWhere .= ')';
+        exit;
     }
-    
-    $sql = "SELECT * FROM $sTable $sWhere ORDER BY id_persona DESC";
-    $query = mysqli_query($conexion, $sql);
-    
-    // Si hay resultados, armamos la tabla
-    if ($query && mysqli_num_rows($query) > 0) {
-        ?>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>ID</th>
-                        <th>Documento</th>
-                        <th>Nombre Completo</th>
-                        <th>Teléfono</th>
-                        <th class="text-end">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    while ($row = mysqli_fetch_array($query)) {
-                        $id = $row['id_persona'];
-                        $documento = $row['documento'];
-                        $nombre = $row['nombre'] . " " . $row['apellido'];
-                        $telefono = !empty($row['telefono']) ? $row['telefono'] : '<span class="text-muted">N/A</span>';
-                        ?>
-                        <tr>
-                            <td><?php echo $id; ?></td>
-                            <td><strong><?php echo $documento; ?></strong></td>
-                            <td><?php echo $nombre; ?></td>
-                            <td><?php echo $telefono; ?></td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-outline-secondary" onclick="editar('<?php echo $id; ?>')"><i class="fas fa-edit"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="eliminar('<?php echo $id; ?>')"><i class="fas fa-trash"></i></button>
-                            </td>
-                        </tr>
-                        <?php
-                    }
-                    ?>
-                </tbody>
-            </table>
-        </div>
-        <?php
-    } else {
-        ?>
-        <div class="alert alert-warning text-center m-3 mb-3">
-            <i class="fas fa-info-circle"></i> No se encontraron personas registradas.
-        </div>
-        <?php
+
+    // 3. Eliminar persona
+    if ($action === 'eliminar') {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($personaModel->eliminar($id)) {
+            echo json_encode(['status' => 'success', 'message' => 'Registro eliminado correctamente.']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'No se pudo eliminar el registro.']);
+        }
+        exit;
     }
+
+    // 4. Insertar o Actualizar
+    if ($action === 'guardar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (empty($_POST['documento']) || empty($_POST['nombre']) || empty($_POST['apellido'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Campos obligatorios faltantes.']);
+            exit;
+        }
+
+        $id_persona = $_POST['id_persona'] ?? '';
+        
+        if (empty($id_persona)) {
+            // Si no hay ID, creamos uno nuevo
+            $exito = $personaModel->insertar($_POST);
+            $mensaje = 'Persona registrada con éxito.';
+        } else {
+            // Si hay ID, actualizamos el existente
+            $exito = $personaModel->actualizar($_POST);
+            $mensaje = 'Datos actualizados correctamente.';
+        }
+
+        if ($exito) {
+            echo json_encode(['status' => 'success', 'message' => $mensaje]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Error al guardar los datos en la base de datos.']);
+        }
+        exit;
+    }
+
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'Error interno: ' . $e->getMessage()]);
 }
-?>
